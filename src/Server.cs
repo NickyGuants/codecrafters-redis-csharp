@@ -10,9 +10,12 @@ server.Start();
 
 using Socket client = server.AcceptSocket(); // wait for client
 
-if (client.Connected) { 
-    Console.WriteLine("Connected");
+Console.WriteLine("Connected");
 
+int i = 0;
+Byte[] bytes = new byte[256];
+
+while((i= client.Receive(bytes)) !=0){
     //Send back a response
     var response = "+PONG\r\n";
     byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
