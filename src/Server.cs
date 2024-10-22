@@ -1,23 +1,72 @@
 using System.Net;
 using System.Net.Sockets;
 
-// You can use print statements as follows for debugging, they'll be visible when running tests.
-Console.WriteLine("Logs from your program will appear here!");
+public class Server
+{
+    private TcpListener _server;
 
-// Uncomment this block to pass the first stage
-TcpListener server = new TcpListener(IPAddress.Any, 6379);
-server.Start();
+    public Server(IPAddress iPAddress, int port){
+        _server = new TcpListener(iPAddress, port);
+    }
 
-using Socket client = server.AcceptSocket(); // wait for client
+    public void Start()
+    {
+        try
+        {
+            _server.Start();
+            Console.WriteLine("Redis Server Started");
 
-Console.WriteLine("Connected");
+            while (true)
+            {
+                Socket client = _server.AcceptSocket(); // wait for client
+                Console.WriteLine("Client Connected");
 
-int i = 0;
-Byte[] bytes = new byte[256];
+                _ = Task.Run(() => HandleClient(client));
+            }
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"SocketException: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception: {ex.Message}");
+        }
+    }
 
-while((i= client.Receive(bytes)) !=0){
-    //Send back a response
-    var response = "+PONG\r\n";
-    byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
-    await client.SendAsync(msg);
+    public async Task HandleClient(Socket client){
+        int i = 0;
+        Byte[] bytes = new byte[256];
+
+        try
+        {
+            while ((i = client.Receive(bytes)) != 0)
+            {
+                //Send back a response
+                var response = "+PONG\r\n";
+                byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
+                await client.SendAsync(msg);
+            }
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"SocketException: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception: {ex.Message}");
+        }
+        finally
+        {
+            client.Close();
+        }
+    }
+
+    public static void Main(string[] args){
+        // You can use print statements as follows for debugging, they'll be visible when running tests.
+        Console.WriteLine("Logs from your program will appear here!");
+
+        Server server = new Server(IPAddress.Any, 6379);
+        server.Start();
+    }
 }
