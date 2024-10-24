@@ -1,72 +1,78 @@
 using System.Net;
 using System.Net.Sockets;
 
-public class Server
+namespace codecrafters_redis.src
 {
-    private TcpListener _server;
-
-    public Server(IPAddress iPAddress, int port){
-        _server = new TcpListener(iPAddress, port);
-    }
-
-    public void Start()
+    public class Server
     {
-        try
+        private TcpListener _server;
+
+        public Server(IPAddress iPAddress, int port)
         {
-            _server.Start();
-            Console.WriteLine("Redis Server Started");
+            _server = new TcpListener(iPAddress, port);
+        }
 
-            while (true)
+        public void Start()
+        {
+            try
             {
-                Socket client = _server.AcceptSocket(); // wait for client
-                Console.WriteLine("Client Connected");
+                _server.Start();
+                Console.WriteLine("Redis Server Started");
 
-                _ = Task.Run(() => HandleClient(client));
+                while (true)
+                {
+                    Socket client = _server.AcceptSocket(); // wait for client
+                    Console.WriteLine("Client Connected");
+
+                    _ = Task.Run(() => HandleClient(client));
+                }
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine($"SocketException: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception: {ex.Message}");
             }
         }
-        catch (SocketException ex)
-        {
-            Console.WriteLine($"SocketException: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Exception: {ex.Message}");
-        }
-    }
 
-    public async Task HandleClient(Socket client){
-        int i = 0;
-        Byte[] bytes = new byte[256];
-
-        try
+        public async Task HandleClient(Socket client)
         {
-            while ((i = client.Receive(bytes)) != 0)
+            int i = 0;
+            Byte[] bytes = new byte[256];
+
+            try
             {
-                //Send back a response
-                var response = "+PONG\r\n";
-                byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
-                await client.SendAsync(msg);
+                while ((i = client.Receive(bytes)) != 0)
+                {
+                    //Send back a response
+                    var response = "+PONG\r\n";
+                    byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
+                    await client.SendAsync(msg);
+                }
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine($"SocketException: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception: {ex.Message}");
+            }
+            finally
+            {
+                client.Close();
             }
         }
-        catch (SocketException ex)
-        {
-            Console.WriteLine($"SocketException: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Exception: {ex.Message}");
-        }
-        finally
-        {
-            client.Close();
-        }
-    }
 
-    public static void Main(string[] args){
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        Console.WriteLine("Logs from your program will appear here!");
+        public static void Main(string[] args)
+        {
+            // You can use print statements as follows for debugging, they'll be visible when running tests.
+            Console.WriteLine("Logs from your program will appear here!");
 
-        Server server = new Server(IPAddress.Any, 6379);
-        server.Start();
+            Server server = new Server(IPAddress.Any, 6379);
+            server.Start();
+        }
     }
 }
