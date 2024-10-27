@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace codecrafters_redis.src
 {
@@ -39,17 +40,47 @@ namespace codecrafters_redis.src
 
         public async Task HandleClient(Socket client)
         {
-            int i = 0;
-            Byte[] bytes = new byte[256];
+            int bytesRead = 0;
+            Byte[] buffer = new byte[1024];
+            StringBuilder stringBuilder = new StringBuilder();
 
             try
             {
-                while ((i = client.Receive(bytes)) != 0)
+                while ((bytesRead = client.Receive(buffer)) > 0)
                 {
-                    //Send back a response
-                    var response = "+PONG\r\n";
-                    byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
-                    await client.SendAsync(msg);
+                    var inputChunk = System.Text.Encoding.ASCII.GetString(buffer, 0, bytesRead);
+                    stringBuilder.Append(inputChunk);
+
+                    //Check if we have a complete RESP message ie ends with \r\n
+                    if(inputChunk.EndsWith("\r\n")){
+                        string input = stringBuilder.ToString();
+                        string[] decodedParts = RespParser.Decode(input).Split(',');
+
+                        string command = decodedParts[0].ToUpper();
+                        string response;
+                        switch(command)
+                        {
+                            case "PING":
+                                response = "+PONG\r\n";
+                                break;
+                            case "ECHO":
+                                if(decodedParts.Length <2){
+                                    response = "-ERR wrong number of arguments for 'echo' Command\r\n";
+                                }
+
+                                response = $"+{decodedParts[1]}\r\n";
+                                break;
+                            default:
+                                response = $"-ERR unknown command '{command}'\r\n";
+                                break;
+                            
+                        }
+                    
+                        //Send back a response
+                        byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
+                        await client.SendAsync(msg);
+                        stringBuilder.Clear();
+                    }
                 }
             }
             catch (SocketException ex)
