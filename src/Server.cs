@@ -1,16 +1,13 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Timers;
 
 namespace codecrafters_redis.src
 {
     public class Server
     {
         private TcpListener _server;
-        public static Dictionary<string, string> keyValues = new Dictionary<string, string>();
-        public static Dictionary<string, DateTime> keyExpiry = new Dictionary<string, DateTime>();
-        private static System.Timers.Timer timer;
+        public static Dictionary<string, (string, DateTime?)> data = new Dictionary<string, (string, DateTime?)>();
 
         public Server(IPAddress iPAddress, int port)
         {
@@ -75,23 +72,25 @@ namespace codecrafters_redis.src
                                 response = $"+{decodedParts[1]}\r\n";
                                 break;
                             case "SET":
-                                keyValues.Add(decodedParts[1], decodedParts[2]);
-                                if (decodedParts.Length>3 && decodedParts[3].Equals("px", StringComparison.OrdinalIgnoreCase))
+                                if (decodedParts.Length > 3 && decodedParts[3].Equals("px", StringComparison.OrdinalIgnoreCase))
                                 {
                                     var ms = Convert.ToDouble(decodedParts[4]);
-                                    keyExpiry.Add(decodedParts[1], DateTime.UtcNow.AddMilliseconds(ms));
+                                    data.Add(decodedParts[1], (decodedParts[2], DateTime.UtcNow.AddMilliseconds(ms)));
+                                }else{
+                                    data.Add(decodedParts[1], (decodedParts[2], null));
                                 }
                                 response = "+OK\r\n";
                                 break;
                             case "GET":
                                 var key = decodedParts[1];
 
-                                if (keyValues.TryGetValue(key, out var value))
+                                if (data.ContainsKey(key))
                                 {
-                                    if (keyExpiry.TryGetValue(key, out var expiryTime) && expiryTime <= DateTime.UtcNow)
+                                    var (value, expiryTime) = data[key];
+                                    if (expiryTime !=null && expiryTime <= DateTime.UtcNow)
                                     {
-                                        keyValues.Remove(key);
-                                        keyExpiry.Remove(key);
+                                        data.Remove(key);
+                                        data.Remove(key);
                                         response = $"$-1\r\n";
                                     }
                                     else{
@@ -135,10 +134,6 @@ namespace codecrafters_redis.src
 
             Server server = new Server(IPAddress.Any, 6379);
             server.Start();
-        }
-
-        private static void OnTimedEvent(Object source, ElapsedEventArgs e){
-            Console.WriteLine("Emitted");
         }
     }
 }
