@@ -7,6 +7,7 @@ namespace codecrafters_redis.src
     public class Server
     {
         private TcpListener _server;
+        public Dictionary<string, string> keyValues = new Dictionary<string, string>();
 
         public Server(IPAddress iPAddress, int port)
         {
@@ -69,6 +70,14 @@ namespace codecrafters_redis.src
                                 }
 
                                 response = $"+{decodedParts[1]}\r\n";
+                                break;
+                            case "SET":
+                                keyValues.Add(decodedParts[1], decodedParts[2]);
+                                response = "+OK\r\n";
+                                break;
+                            case "GET":
+                                var key = decodedParts[1];
+                                response = $"+{keyValues[key]}\r\n";
                                 break;
                             default:
                                 response = $"-ERR unknown command '{command}'\r\n";
