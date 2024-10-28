@@ -1,13 +1,16 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Timers;
 
 namespace codecrafters_redis.src
 {
     public class Server
     {
         private TcpListener _server;
-        public Dictionary<string, string> keyValues = new Dictionary<string, string>();
+        public static Dictionary<string, string> keyValues = new Dictionary<string, string>();
+        public static Dictionary<string, DateTime> keyExpiry = new Dictionary<string, DateTime>();
+        private static System.Timers.Timer timer;
 
         public Server(IPAddress iPAddress, int port)
         {
@@ -73,11 +76,30 @@ namespace codecrafters_redis.src
                                 break;
                             case "SET":
                                 keyValues.Add(decodedParts[1], decodedParts[2]);
+                                if (decodedParts.Length>3 && decodedParts[3].Equals("px", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var ms = Convert.ToDouble(decodedParts[4]);
+                                    keyExpiry.Add(decodedParts[1], DateTime.UtcNow.AddMilliseconds(ms));
+                                }
                                 response = "+OK\r\n";
                                 break;
                             case "GET":
                                 var key = decodedParts[1];
-                                response = $"+{keyValues[key]}\r\n";
+
+                                if (keyValues.TryGetValue(key, out var value))
+                                {
+                                    if (keyExpiry.TryGetValue(key, out var expiryTime) && expiryTime <= DateTime.UtcNow)
+                                    {
+                                        keyValues.Remove(key);
+                                        keyExpiry.Remove(key);
+                                        response = $"$-1\r\n";
+                                    }
+                                    else{
+                                        response = $"+{value}\r\n";
+                                    }
+                                    break;
+                                }
+                                response = $"$-1\r\n";
                                 break;
                             default:
                                 response = $"-ERR unknown command '{command}'\r\n";
@@ -113,6 +135,10 @@ namespace codecrafters_redis.src
 
             Server server = new Server(IPAddress.Any, 6379);
             server.Start();
+        }
+
+        private static void OnTimedEvent(Object source, ElapsedEventArgs e){
+            Console.WriteLine("Emitted");
         }
     }
 }
