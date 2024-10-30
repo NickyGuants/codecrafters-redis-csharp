@@ -8,6 +8,8 @@ namespace codecrafters_redis.src
     {
         private TcpListener _server;
         public static Dictionary<string, (string, DateTime?)> data = new Dictionary<string, (string, DateTime?)>();
+        public static string RDBFileDirectory=string.Empty;
+        public static string RDBFileName = string.Empty;
 
         public Server(IPAddress iPAddress, int port)
         {
@@ -100,6 +102,19 @@ namespace codecrafters_redis.src
                                 }
                                 response = $"$-1\r\n";
                                 break;
+                            
+                            case "CONFIG":
+                                if(decodedParts[2] == "dir"){
+                                    response = $"*2\r\n$3\r\ndir\r\n${RDBFileDirectory.Length}\r\n{RDBFileDirectory}\r\n";
+                            
+                                }else if(decodedParts[2] == "dbfilename"){
+                                    response = $"*2\r\n$10\r\ndbfilename\r\n${RDBFileName.Length}\r\n{RDBFileName}\r\n";
+                                   
+                                }else{
+                                    response = $"-ERR unknown command '{command}'\r\n";
+                                    
+                                }
+                                break;
                             default:
                                 response = $"-ERR unknown command '{command}'\r\n";
                                 break;
@@ -131,6 +146,18 @@ namespace codecrafters_redis.src
         {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             Console.WriteLine("Logs from your program will appear here!");
+            for (int i = 0; i < args.Length; i++)
+            {
+                switch (args[i])
+                {
+                    case "--dir":
+                        if (i + 1 < args.Length) RDBFileDirectory = args[++i];
+                        break;
+                    case "--dbfilename":
+                        if (i + 1 < args.Length) RDBFileName = args[++i];
+                        break;
+                }
+            }
 
             Server server = new Server(IPAddress.Any, 6379);
             server.Start();
